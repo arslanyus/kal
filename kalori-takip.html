@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalori Takip</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --card: #1e1e1e;
+    --border: #2a2a2a;
+    --accent: #e8c547;
+    --accent2: #e87d47;
+    --text: #f0ede6;
+    --muted: #888;
+    --green: #5ecb8a;
+    --red: #e85d5d;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grain */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  .app {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  /* HEADER */
+  header {
+    margin-bottom: 48px;
+    position: relative;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .brand {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .brand-name {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(32px, 6vw, 52px);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+
+  .brand-name span {
+    color: var(--accent);
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  .today-summary {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    text-align: right;
+    min-width: 160px;
+  }
+
+  .today-cal {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .today-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(to right, var(--accent), transparent);
+    margin-top: 24px;
+    opacity: 0.4;
+  }
+
+  /* INPUT AREA */
+  .input-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .input-section::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(to right, var(--accent), var(--accent2));
+  }
+
+  .input-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  textarea {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    min-height: 56px;
+    max-height: 120px;
+    line-height: 1.5;
+    transition: border-color 0.2s;
+  }
+
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
+
+  .add-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    width: 56px;
+    height: 56px;
+    font-size: 22px;
+    cursor: pointer;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .add-btn:hover { background: #f0d060; transform: scale(1.05); }
+  .add-btn:active { transform: scale(0.97); }
+  .add-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  .loading-bar {
+    height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 12px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .loading-bar.active { display: block; }
+
+  .loading-bar::after {
+    content: '';
+    display: block;
+    height: 100%;
+    width: 40%;
+    background: linear-gradient(to right, var(--accent), var(--accent2));
+    animation: slide 1s infinite ease-in-out;
+  }
+
+  @keyframes slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+  }
+
+  .ai-status {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    min-height: 16px;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ai-status.thinking { color: var(--accent); }
+  .ai-status.error { color: var(--red); }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 20px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 10px 8px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  .tab.active {
+    background: var(--accent);
+    color: #000;
+    font-weight: 500;
+  }
+
+  /* STATS BAR */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+
+  .stat-val {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .stat-lbl {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  /* ENTRIES */
+  .entries-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .entries-title {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .clear-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+
+  .clear-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .clear-btn.selecting { border-color: var(--red); color: var(--red); background: rgba(232,93,93,0.08); }
+
+  .delete-selected-btn {
+    background: var(--red);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 4px 12px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    display: none;
+  }
+
+  .delete-selected-btn.visible { display: inline-block; }
+  .delete-selected-btn:hover { background: #c44; }
+
+  .entry-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    animation: fadeIn 0.3s ease;
+    cursor: default;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .entry-item.select-mode { cursor: pointer; }
+  .entry-item.select-mode:hover { border-color: var(--accent); background: rgba(232,197,71,0.05); }
+  .entry-item.selected { border-color: var(--red) !important; background: rgba(232,93,93,0.08) !important; }
+
+  .entry-checkbox {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    transition: all 0.15s;
+  }
+
+  .select-mode .entry-checkbox { display: flex; }
+  .entry-item.selected .entry-checkbox { border-color: var(--red); background: var(--red); color: #fff; }
+
+  .entries-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .entry-left { flex: 1; min-width: 0; }
+
+  .entry-food {
+    font-size: 14px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .entry-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .entry-time {
+    letter-spacing: 0.5px;
+  }
+
+  .entry-note {
+    color: #666;
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }
+
+  .entry-cal {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    flex-shrink: 0;
+    min-width: 60px;
+    text-align: right;
+  }
+
+  .entry-cal-unit {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    display: block;
+    text-align: right;
+    margin-top: 1px;
+  }
+
+  .del-btn {
+    background: none;
+    border: none;
+    color: var(--border);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 0.15s;
+    flex-shrink: 0;
+  }
+
+  .del-btn:hover { color: var(--red); }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--muted);
+  }
+
+  .empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+
+  .empty-text {
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* CHART */
+  .chart-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .chart-title {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 80px;
+  }
+
+  .bar-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    height: 100%;
+    justify-content: flex-end;
+  }
+
+  .bar {
+    width: 100%;
+    background: linear-gradient(to top, var(--accent), var(--accent2));
+    border-radius: 3px 3px 0 0;
+    min-height: 2px;
+    transition: height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+  }
+
+  .bar-label {
+    font-size: 9px;
+    color: var(--muted);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* GOAL */
+  .goal-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .goal-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .goal-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    width: 100px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .goal-input:focus { border-color: var(--accent); }
+
+  .goal-progress-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .goal-progress-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .goal-progress-fill {
+    height: 100%;
+    background: linear-gradient(to right, var(--green), var(--accent));
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  .goal-progress-fill.over { background: linear-gradient(to right, var(--accent), var(--red)); }
+
+  .goal-pct {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  /* ADVISOR SECTION */
+  .advisor-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .advisor-section::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(to right, #5ecb8a, #47b8e8);
+  }
+
+  .advisor-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .advisor-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .advisor-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .advisor-badge {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(94,203,138,0.15);
+    color: var(--green);
+    border: 1px solid rgba(94,203,138,0.3);
+  }
+
+  .advisor-input-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .advisor-result {
+    margin-top: 16px;
+    display: none;
+  }
+
+  .advisor-result.visible { display: block; animation: fadeIn 0.4s ease; }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .result-food-name {
+    font-size: 16px;
+    font-weight: 500;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .result-cal-badge {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .result-cal-unit {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  .health-score {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .health-dots {
+    display: flex;
+    gap: 4px;
+  }
+
+  .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+
+  .dot.green { background: var(--green); }
+  .dot.yellow { background: var(--accent); }
+  .dot.red { background: var(--red); }
+
+  .health-label {
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .health-label.good { color: var(--green); }
+  .health-label.ok { color: var(--accent); }
+  .health-label.bad { color: var(--red); }
+
+  .result-analysis {
+    font-size: 13px;
+    line-height: 1.7;
+    color: #ccc;
+    margin-bottom: 14px;
+  }
+
+  .result-analysis strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .alternatives-title {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .alt-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .alt-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .alt-chip:hover {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(94,203,138,0.08);
+  }
+
+  .alt-chip-cal {
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .macros-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .macro-item {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+
+  .macro-val {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .macro-lbl {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .ask-btn {
+    background: linear-gradient(135deg, #5ecb8a, #47b8e8);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    width: 56px;
+    height: 56px;
+    font-size: 18px;
+    cursor: pointer;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ask-btn:hover { opacity: 0.85; transform: scale(1.05); }
+  .ask-btn:active { transform: scale(0.97); }
+  .ask-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  .advisor-loading {
+    height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 12px;
+    overflow: hidden;
+    display: none;
+  }
+  .advisor-loading.active { display: block; }
+  .advisor-loading::after {
+    content: '';
+    display: block;
+    height: 100%;
+    width: 40%;
+    background: linear-gradient(to right, #5ecb8a, #47b8e8);
+    animation: slide 1s infinite ease-in-out;
+  }
+
+  .advisor-status {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    min-height: 16px;
+  }
+
+  .profile-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .profile-tag {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+    user-select: none;
+  }
+
+  .profile-tag.active {
+    background: rgba(94,203,138,0.12);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .profile-hint {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  /* SCROLL */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  @media (max-width: 480px) {
+    .stats-bar { grid-template-columns: repeat(3, 1fr); }
+    .entry-note { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-top">
+      <div class="brand">
+        <div class="brand-name">kalo<span>ri</span></div>
+        <div class="brand-sub">Günlük Takip</div>
+      </div>
+      <div class="today-summary">
+        <div class="today-cal" id="todayTotal">0</div>
+        <div class="today-label">Bugün kcal</div>
+      </div>
+    </div>
+    <div class="divider"></div>
+  </header>
+
+  <!-- GOAL -->
+  <div class="goal-section">
+    <div class="goal-label">Hedef</div>
+    <input type="number" class="goal-input" id="goalInput" value="2000" min="500" max="9999">
+    <div class="goal-label">kcal</div>
+    <div class="goal-progress-wrap">
+      <div class="goal-progress-bar">
+        <div class="goal-progress-fill" id="goalFill" style="width:0%"></div>
+      </div>
+      <div class="goal-pct" id="goalPct">0% tamamlandı</div>
+    </div>
+  </div>
+
+  <!-- INPUT -->
+  <div class="input-section">
+    <div class="input-label">Ne yediniz?</div>
+    <div class="input-row">
+      <textarea id="foodInput" placeholder="Örn: 2 dilim pizza, 1 bardak süt, büyük boy burger..." rows="2"></textarea>
+      <button class="add-btn" id="addBtn" onclick="addFood()">+</button>
+    </div>
+    <div class="loading-bar" id="loadingBar"></div>
+    <div class="ai-status" id="aiStatus"></div>
+  </div>
+
+  <!-- ADVISOR -->
+  <div class="advisor-section">
+    <div class="advisor-title-row">
+      <div>
+        <div class="advisor-label">Yapay Zeka</div>
+        <div class="advisor-title">Besin Danışmanı</div>
+      </div>
+      <div class="advisor-badge">✦ Kişisel Analiz</div>
+    </div>
+
+    <div class="profile-hint">Sağlık Profiliniz (opsiyonel)</div>
+    <div class="profile-row" id="profileTags">
+      <div class="profile-tag" data-val="gluten_hassasiyeti" onclick="toggleTag(this)">🌾 Gluten Hassasiyeti</div>
+      <div class="profile-tag" data-val="laktoz_intoleransi" onclick="toggleTag(this)">🥛 Laktoz İntoleransı</div>
+      <div class="profile-tag" data-val="diyabet" onclick="toggleTag(this)">🩸 Diyabet</div>
+      <div class="profile-tag" data-val="hipertansiyon" onclick="toggleTag(this)">❤️ Hipertansiyon</div>
+      <div class="profile-tag" data-val="vejetaryen" onclick="toggleTag(this)">🥗 Vejetaryen</div>
+      <div class="profile-tag" data-val="kilo_verme" onclick="toggleTag(this)">⚖️ Kilo Verme</div>
+      <div class="profile-tag" data-val="kas_kazanma" onclick="toggleTag(this)">💪 Kas Kazanma</div>
+    </div>
+
+    <div class="advisor-input-row">
+      <textarea id="advisorInput" placeholder="Ne yemek istiyorsunuz? Örn: akşam yemeği için beyaz ekmek arası köfte düşünüyorum..." rows="2"></textarea>
+      <button class="ask-btn" id="askBtn" onclick="askAdvisor()">?</button>
+    </div>
+    <div class="advisor-loading" id="advisorLoading"></div>
+    <div class="advisor-status" id="advisorStatus"></div>
+
+    <div class="advisor-result" id="advisorResult">
+      <div class="result-header">
+        <div class="result-food-name" id="resultFoodName"></div>
+        <div>
+          <span class="result-cal-badge" id="resultCal"></span>
+          <span class="result-cal-unit"> kcal</span>
+        </div>
+      </div>
+      <div class="health-score">
+        <div class="health-dots" id="healthDots"></div>
+        <div class="health-label" id="healthLabel"></div>
+      </div>
+      <div class="macros-row" id="macrosRow"></div>
+      <div class="result-analysis" id="resultAnalysis"></div>
+      <div id="altSection" style="display:none">
+        <div class="alternatives-title">✦ Daha İyi Alternatifler</div>
+        <div class="alt-chips" id="altChips"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="setTab('daily')">Günlük</button>
+    <button class="tab" onclick="setTab('weekly')">Haftalık</button>
+    <button class="tab" onclick="setTab('monthly')">Aylık</button>
+    <button class="tab" onclick="setTab('yearly')">Yıllık</button>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-bar" id="statsBar"></div>
+
+  <!-- CHART -->
+  <div class="chart-section" id="chartSection">
+    <div class="chart-title" id="chartTitle">Son 7 Gün</div>
+    <div class="bar-chart" id="barChart"></div>
+  </div>
+
+  <!-- ENTRIES -->
+  <div class="entries-header">
+    <div class="entries-title" id="entriesTitle">Bugünkü Öğünler</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelected()">Seçilenleri Sil</button>
+      <button class="clear-btn" id="selectModeBtn" onclick="toggleSelectMode()">Seç</button>
+    </div>
+  </div>
+  <div class="entries-list" id="entriesList"></div>
+
+</div>
+
+<script>
+const STORAGE_KEY = 'kalori_entries_v2';
+const GOAL_KEY = 'kalori_goal';
+
+let currentTab = 'daily';
+let entries = [];
+let dailyGoal = 2000;
+
+// LOAD
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    entries = raw ? JSON.parse(raw) : [];
+  } catch { entries = []; }
+  dailyGoal = parseInt(localStorage.getItem(GOAL_KEY) || '2000');
+  document.getElementById('goalInput').value = dailyGoal;
+}
+
+// SAVE
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  localStorage.setItem(GOAL_KEY, dailyGoal);
+}
+
+// DATE HELPERS
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function weekStart() {
+  const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1); return d.toISOString().slice(0, 10);
+}
+function monthStr() { return new Date().toISOString().slice(0, 7); }
+function yearStr() { return new Date().getFullYear().toString(); }
+
+function formatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+}
+
+// FILTER ENTRIES
+function getFiltered() {
+  const today = todayStr();
+  const ws = weekStart();
+  const month = monthStr();
+  const year = yearStr();
+
+  return entries.filter(e => {
+    const ds = e.date.slice(0, 10);
+    if (currentTab === 'daily') return ds === today;
+    if (currentTab === 'weekly') return ds >= ws;
+    if (currentTab === 'monthly') return e.date.slice(0, 7) === month;
+    if (currentTab === 'yearly') return e.date.slice(0, 4) === year;
+    return true;
+  });
+}
+
+// ADD FOOD via AI
+async function addFood() {
+  const input = document.getElementById('foodInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('addBtn');
+  const loadingBar = document.getElementById('loadingBar');
+  const status = document.getElementById('aiStatus');
+
+  btn.disabled = true;
+  loadingBar.classList.add('active');
+  status.className = 'ai-status thinking';
+  status.textContent = '⚡ AI hesaplıyor...';
+
+  try {
+    const response = await fetch("https://restless-cell-a9f5.yusufarslanrd.workers.dev", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system: `Sen bir kalori uzmanısın. Kullanıcının yediği yiyecekleri analiz et ve SADECE JSON ile yanıt ver. 
+Format: {"foods": [{"name": "yiyecek adı", "calories": sayı, "portion": "porsiyon açıklaması"}], "total": toplam_kalori, "note": "kısa not (opsiyonel)"}
+Notlar: Türkçe yiyecekleri iyi tanıyorsun. Kalori tahminleri ortalama değerler. Hiçbir zaman JSON dışında metin yazma.`,
+        messages: [{ role: "user", content: text }]
+      })
+    });
+
+    const data = await response.json();
+    const raw = data.content.map(i => i.text || '').join('');
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(clean);
+
+    const entry = {
+      id: Date.now(),
+      date: new Date().toISOString(),
+      input: text,
+      foods: result.foods,
+      total: result.total,
+      note: result.note || ''
+    };
+
+    entries.unshift(entry);
+    save();
+    render();
+
+    input.value = '';
+    status.className = 'ai-status';
+    status.textContent = `✓ ${result.total} kcal eklendi`;
+    setTimeout(() => { status.textContent = ''; }, 3000);
+
+  } catch (err) {
+    status.className = 'ai-status error';
+    status.textContent = '✗ Hata oluştu, tekrar deneyin';
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    loadingBar.classList.remove('active');
+  }
+}
+
+// TAB
+function setTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const tabs = ['daily','weekly','monthly','yearly'];
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  render();
+}
+
+// SELECT MODE
+let selectMode = false;
+let selectedIds = new Set();
+
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  selectedIds.clear();
+  const btn = document.getElementById('selectModeBtn');
+  const delBtn = document.getElementById('deleteSelectedBtn');
+  btn.textContent = selectMode ? 'İptal' : 'Seç';
+  btn.classList.toggle('selecting', selectMode);
+  delBtn.classList.remove('visible');
+  render();
+}
+
+function toggleSelect(id) {
+  if (!selectMode) return;
+  if (selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+
+  const delBtn = document.getElementById('deleteSelectedBtn');
+  delBtn.classList.toggle('visible', selectedIds.size > 0);
+  delBtn.textContent = selectedIds.size > 0 ? `${selectedIds.size} Kaydı Sil` : 'Seçilenleri Sil';
+
+  // Update visual state
+  document.querySelectorAll('.entry-item').forEach(el => {
+    const id2 = parseInt(el.dataset.id);
+    el.classList.toggle('selected', selectedIds.has(id2));
+    const cb = el.querySelector('.entry-checkbox');
+    if (cb) cb.textContent = selectedIds.has(id2) ? '✓' : '';
+  });
+}
+
+function deleteSelected() {
+  if (!selectedIds.size) return;
+  entries = entries.filter(e => !selectedIds.has(e.id));
+  selectedIds.clear();
+  selectMode = false;
+  const btn = document.getElementById('selectModeBtn');
+  btn.textContent = 'Seç';
+  btn.classList.remove('selecting');
+  document.getElementById('deleteSelectedBtn').classList.remove('visible');
+  save(); render();
+}
+
+// DELETE ENTRY (single, via × button)
+function deleteEntry(id, ev) {
+  ev.stopPropagation();
+  entries = entries.filter(e => e.id !== id);
+  save(); render();
+}
+
+// RENDER
+function render() {
+  const filtered = getFiltered();
+  const total = filtered.reduce((s, e) => s + e.total, 0);
+  const todayEntries = entries.filter(e => e.date.slice(0,10) === todayStr());
+  const todayTotal = todayEntries.reduce((s,e) => s+e.total, 0);
+
+  // Today header
+  document.getElementById('todayTotal').textContent = todayTotal.toLocaleString('tr');
+
+  // Goal progress
+  const pct = Math.min((todayTotal / dailyGoal) * 100, 100);
+  const fill = document.getElementById('goalFill');
+  fill.style.width = pct + '%';
+  fill.className = 'goal-progress-fill' + (todayTotal > dailyGoal ? ' over' : '');
+  document.getElementById('goalPct').textContent = Math.round((todayTotal / dailyGoal) * 100) + '% tamamlandı';
+
+  // Stats
+  const avg = filtered.length ? Math.round(total / new Set(filtered.map(e => e.date.slice(0,10))).size) : 0;
+  const max = filtered.length ? Math.max(...filtered.map(e => e.total)) : 0;
+
+  const statLabels = {
+    daily: ['Toplam', 'Öğün', 'En Yüksek'],
+    weekly: ['Toplam', 'Ort/Gün', 'En Yüksek'],
+    monthly: ['Toplam', 'Ort/Gün', 'En Yüksek'],
+    yearly: ['Toplam', 'Ort/Gün', 'En Yüksek'],
+  };
+
+  const statVals = [
+    total.toLocaleString('tr'),
+    currentTab === 'daily' ? filtered.length : avg.toLocaleString('tr'),
+    max.toLocaleString('tr')
+  ];
+
+  document.getElementById('statsBar').innerHTML = statLabels[currentTab].map((l, i) => `
+    <div class="stat-card">
+      <div class="stat-val">${statVals[i]}</div>
+      <div class="stat-lbl">${l}</div>
+    </div>
+  `).join('');
+
+  // Chart
+  renderChart(filtered);
+
+  // Entries
+  const entTitle = {
+    daily: 'Bugünkü Öğünler',
+    weekly: 'Bu Haftaki Öğünler',
+    monthly: 'Bu Ayki Öğünler',
+    yearly: 'Bu Yılın Öğünleri'
+  };
+  document.getElementById('entriesTitle').textContent = entTitle[currentTab];
+
+  const list = document.getElementById('entriesList');
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🍽</div><div class="empty-text">Henüz kayıt yok</div></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(e => `
+    <div class="entry-item ${selectMode ? 'select-mode' : ''} ${selectedIds.has(e.id) ? 'selected' : ''}" data-id="${e.id}" onclick="toggleSelect(${e.id})">
+      <div class="entry-checkbox">${selectedIds.has(e.id) ? '✓' : ''}</div>
+      <div class="entry-left">
+        <div class="entry-food">${e.input}</div>
+        <div class="entry-meta">
+          <span class="entry-time">${currentTab === 'daily' ? formatTime(e.date) : formatDate(e.date)}</span>
+          ${e.note ? `<span class="entry-note">${e.note}</span>` : ''}
+        </div>
+      </div>
+      <div>
+        <div class="entry-cal">${e.total.toLocaleString('tr')}</div>
+        <span class="entry-cal-unit">kcal</span>
+      </div>
+      ${!selectMode ? `<button class="del-btn" onclick="deleteEntry(${e.id}, event)">×</button>` : ''}
+    </div>
+  `).join('');
+}
+
+// RENDER CHART
+function renderChart(filtered) {
+  const chart = document.getElementById('barChart');
+  const title = document.getElementById('chartTitle');
+
+  // Group by day
+  const byDay = {};
+  filtered.forEach(e => {
+    const d = e.date.slice(0, 10);
+    byDay[d] = (byDay[d] || 0) + e.total;
+  });
+
+  let days = [];
+
+  if (currentTab === 'daily') {
+    // Last 24h by hour - show today only
+    const today = todayStr();
+    const byHour = {};
+    entries.filter(e => e.date.slice(0,10) === today).forEach(e => {
+      const h = new Date(e.date).getHours();
+      byHour[h] = (byHour[h] || 0) + e.total;
+    });
+    const hours = [6,8,10,12,14,16,18,20,22];
+    days = hours.map(h => ({ label: h+'h', val: byHour[h] || 0 }));
+    title.textContent = 'Bugün Saate Göre';
+  } else if (currentTab === 'weekly') {
+    const now = new Date();
+    days = Array.from({length: 7}, (_, i) => {
+      const d = new Date(now); d.setDate(d.getDate() - 6 + i);
+      const ds = d.toISOString().slice(0,10);
+      const lbl = d.toLocaleDateString('tr-TR', {weekday:'short'});
+      return { label: lbl, val: byDay[ds] || 0 };
+    });
+    title.textContent = 'Son 7 Gün';
+  } else if (currentTab === 'monthly') {
+    const now = new Date();
+    days = Array.from({length: 4}, (_, i) => {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1 + i*7);
+      const end = new Date(now.getFullYear(), now.getMonth(), Math.min(7 + i*7, 31));
+      let total = 0;
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
+        const ds = d.toISOString().slice(0,10);
+        total += byDay[ds] || 0;
+      }
+      return { label: `H${i+1}`, val: total };
+    });
+    title.textContent = 'Bu Ay Haftalık';
+  } else {
+    const year = new Date().getFullYear();
+    const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+    days = months.map((m, i) => {
+      const prefix = `${year}-${String(i+1).padStart(2,'0')}`;
+      const val = Object.entries(byDay).filter(([k]) => k.startsWith(prefix)).reduce((s,[,v]) => s+v, 0);
+      return { label: m, val };
+    });
+    title.textContent = `${year} Yıllık`;
+  }
+
+  const maxVal = Math.max(...days.map(d => d.val), 1);
+  chart.innerHTML = days.map(d => `
+    <div class="bar-wrap">
+      <div class="bar" style="height:${Math.max((d.val/maxVal)*70, d.val > 0 ? 4 : 0)}px" title="${d.val} kcal"></div>
+      <div class="bar-label">${d.label}</div>
+    </div>
+  `).join('');
+}
+
+// KEYBOARD
+document.getElementById('foodInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addFood(); }
+});
+
+// GOAL CHANGE
+document.getElementById('goalInput').addEventListener('input', e => {
+  dailyGoal = parseInt(e.target.value) || 2000;
+  save(); render();
+});
+
+// PROFILE TAGS
+let activeProfile = new Set();
+
+function toggleTag(el) {
+  const val = el.dataset.val;
+  if (activeProfile.has(val)) {
+    activeProfile.delete(val);
+    el.classList.remove('active');
+  } else {
+    activeProfile.add(val);
+    el.classList.add('active');
+  }
+  localStorage.setItem('kalori_profile', JSON.stringify([...activeProfile]));
+}
+
+function loadProfile() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('kalori_profile') || '[]');
+    saved.forEach(val => {
+      activeProfile.add(val);
+      const el = document.querySelector(`[data-val="${val}"]`);
+      if (el) el.classList.add('active');
+    });
+  } catch {}
+}
+
+// ASK ADVISOR
+async function askAdvisor() {
+  const input = document.getElementById('advisorInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('askBtn');
+  const loading = document.getElementById('advisorLoading');
+  const status = document.getElementById('advisorStatus');
+  const result = document.getElementById('advisorResult');
+
+  btn.disabled = true;
+  loading.classList.add('active');
+  result.classList.remove('visible');
+  status.textContent = '⚡ Analiz ediliyor...';
+
+  const profileList = [...activeProfile].map(p => p.replace(/_/g,' ')).join(', ');
+  const profileContext = profileList ? `Kullanıcının sağlık profili: ${profileList}.` : '';
+
+  try {
+    const response = await fetch("https://restless-cell-a9f5.yusufarslanrd.workers.dev", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1500,
+        system: `Sen bir beslenme ve sağlık uzmanısın. Kullanıcının sormadan önce yemek istediği yiyeceği analiz et. SADECE JSON ile yanıt ver, başka hiçbir metin ekleme.
+
+Format:
+{
+  "food_name": "yiyeceğin adı",
+  "calories": tahmini kalori (sayı, 1 porsiyon için),
+  "portion": "porsiyon açıklaması",
+  "macros": {"protein": gram, "carbs": gram, "fat": gram},
+  "health_score": 1-5 (1=çok zararlı, 3=nötr, 5=çok sağlıklı),
+  "verdict": "iyi" | "orta" | "kötü",
+  "analysis": "2-3 cümle detaylı analiz. Profil varsa o kişi için özel değerlendirme yap. Neden iyi/kötü? Hangi besinler var? Hangi durumlarda tercih edilmeli/edilmemeli? Net ve samimi ol.",
+  "alternatives": [
+    {"name": "alternatif yiyecek", "calories": kalori, "reason": "neden daha iyi (10 kelimeye kadar)"},
+    {"name": "alternatif 2", "calories": kalori, "reason": "neden daha iyi"}
+  ]
+}
+
+${profileContext}
+Türkçe yiyecekler dahil her şeyi iyi tanıyorsun. Profil seçiliyse ona özel analiz yap (örn. gluten hassasiyeti varsa buğday içeren yiyecekler için uyar). Alternatifler varsa mutlaka ekle.`,
+        messages: [{ role: "user", content: text }]
+      })
+    });
+
+    const data = await response.json();
+    const raw = data.content.map(i => i.text || '').join('');
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const r = JSON.parse(clean);
+
+    // Fill result
+    document.getElementById('resultFoodName').textContent = r.food_name + (r.portion ? ` — ${r.portion}` : '');
+    document.getElementById('resultCal').textContent = r.calories?.toLocaleString('tr') || '?';
+
+    // Health dots
+    const score = r.health_score || 3;
+    const dotClass = score >= 4 ? 'green' : score >= 3 ? 'yellow' : 'red';
+    document.getElementById('healthDots').innerHTML = Array.from({length: 5}, (_, i) =>
+      `<div class="dot ${i < score ? dotClass : ''}"></div>`
+    ).join('');
+
+    const labelMap = { 'iyi': { text: 'Sağlıklı ✓', cls: 'good' }, 'orta': { text: 'Orta Düzey ⚡', cls: 'ok' }, 'kötü': { text: 'Dikkat Edilmeli ✗', cls: 'bad' } };
+    const lm = labelMap[r.verdict] || { text: 'Nötr', cls: 'ok' };
+    const hl = document.getElementById('healthLabel');
+    hl.textContent = lm.text;
+    hl.className = `health-label ${lm.cls}`;
+
+    // Macros
+    if (r.macros) {
+      document.getElementById('macrosRow').innerHTML = `
+        <div class="macro-item"><div class="macro-val">${r.macros.protein}g</div><div class="macro-lbl">Protein</div></div>
+        <div class="macro-item"><div class="macro-val">${r.macros.carbs}g</div><div class="macro-lbl">Karbonhidrat</div></div>
+        <div class="macro-item"><div class="macro-val">${r.macros.fat}g</div><div class="macro-lbl">Yağ</div></div>
+      `;
+    }
+
+    // Analysis - bold key phrases
+    document.getElementById('resultAnalysis').innerHTML = r.analysis.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // Alternatives
+    const altSection = document.getElementById('altSection');
+    if (r.alternatives && r.alternatives.length) {
+      altSection.style.display = 'block';
+      document.getElementById('altChips').innerHTML = r.alternatives.map(a => `
+        <div class="alt-chip" onclick="document.getElementById('advisorInput').value='${a.name.replace(/'/g,"\\'")}'; askAdvisor()">
+          <span>${a.name}</span>
+          <span class="alt-chip-cal">${a.calories} kcal · ${a.reason}</span>
+        </div>
+      `).join('');
+    } else {
+      altSection.style.display = 'none';
+    }
+
+    result.classList.add('visible');
+    status.textContent = '';
+
+  } catch (err) {
+    status.textContent = '✗ Hata oluştu, tekrar deneyin';
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    loading.classList.remove('active');
+  }
+}
+
+// KEYBOARD for advisor
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('advisorInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); askAdvisor(); }
+  });
+});
+
+// INIT
+load();
+loadProfile();
+render();
+</script>
+</body>
+</html>
